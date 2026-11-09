@@ -34,9 +34,10 @@ defmodule Membrane.FLV.Demuxer do
 
   @typedoc """
   Notification that is sent when the demuxer encounters a video codec that is not supported by the element.
+  For codecs signalled with an enhanced RTMP FourCC that the demuxer doesn't recognize, the FourCC itself is passed.
   """
   @type unsupported_codec_notification_t() ::
-          {:unsupported_codec, FLV.video_codec_t() | :AV1 | :HEVC | :VP9}
+          {:unsupported_codec, FLV.video_codec_t() | :AV1 | :HEVC | :VP9 | binary()}
 
   @typedoc """
   List of formats supported by the demuxer.
@@ -104,6 +105,9 @@ defmodule Membrane.FLV.Demuxer do
 
       {:error, :not_a_header} ->
         raise("Invalid data detected on the input. Expected FLV header")
+
+      {:error, reason} ->
+        raise("Invalid FLV header: #{inspect(reason)}")
     end
   end
 
@@ -121,7 +125,10 @@ defmodule Membrane.FLV.Demuxer do
 
       {:error, {:unsupported_codec, codec}} ->
         {[notify_parent: {:unsupported_codec, codec}],
-         %{ignored_packets: state.ignored_packets + 1}}
+         %{state | ignored_packets: state.ignored_packets + 1}}
+
+      {:error, :encrypted_stream} ->
+        raise("Encrypted FLV streams are not supported")
     end
   end
 
